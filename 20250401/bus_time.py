@@ -27,13 +27,14 @@ def fetch_bus_arrival_time():
         soup = BeautifulSoup(driver.page_source, 'html.parser')
 
         # 找到去程的站名表格
+        print("正在嘗試找到去程站名表格...")
         outbound_table = soup.find('td', class_='ttegotitle').find_next('table')
         if not outbound_table:
             print("無法找到去程的站名表格，請檢查網頁結構。")
             return
 
         # 讀取去程站名與到站時間
-        station_dict = {}
+        outbound_station_dict = {}
         rows = outbound_table.find_all('tr')
         for row in rows:
             stop_link = row.find('a')  # 找到站名的 <a> 標籤
@@ -49,24 +50,58 @@ def fetch_bus_arrival_time():
                     eta = "無資料"  # 如果無法找到到站時間，設為「無資料」
 
                 # 儲存站名與到站時間
-                station_dict[station_name] = eta
+                outbound_station_dict[station_name] = eta
+
+        # 找到返程的站名表格
+        print("正在嘗試找到返程站名表格...")
+        inbound_table = outbound_table.find_next('table')
+        if not inbound_table:
+            print("無法找到返程的站名表格，請檢查網頁結構。")
+            return
+
+        # 讀取返程站名與到站時間
+        inbound_station_dict = {}
+        rows = inbound_table.find_all('tr')
+        for row in rows:
+            stop_link = row.find('a')  # 找到站名的 <a> 標籤
+            eta_cell = row.find('td', id=lambda x: x and x.startswith('tte'))  # 找到到站時間的 <td>
+
+            if stop_link:
+                station_name = stop_link.text.strip()  # 取得站名
+                if eta_cell:
+                    eta = eta_cell.text.strip()  # 取得到站時間
+                    if not eta:  # 如果到站時間為空，記錄為「無資料」
+                        eta = "無資料"
+                else:
+                    eta = "無資料"  # 如果無法找到到站時間，設為「無資料」
+
+                # 儲存站名與到站時間
+                inbound_station_dict[station_name] = eta
 
         # 列出所有站名與到站時間
-        if station_dict:
+        if outbound_station_dict:
             print("去程所有站名與到站時間如下：")
-            for station_name, eta in station_dict.items():
+            for station_name, eta in outbound_station_dict.items():
                 print(f"{station_name}: {eta}")
         else:
             print("無法解析任何去程車站資訊，請檢查網頁結構。")
-            return
+
+        if inbound_station_dict:
+            print("\n返程所有站名與到站時間如下：")
+            for station_name, eta in inbound_station_dict.items():
+                print(f"{station_name}: {eta}")
+        else:
+            print("無法解析任何返程車站資訊，請檢查網頁結構。")
 
         # 使用者輸入站名
         station_name = input("\n請輸入站名：").strip()
 
         # 查詢站名並輸出到站時間
-        if station_name in station_dict:
-            print(f"{station_name} 公車到站時間：{station_dict[station_name]}")
-        else:
+        if station_name in outbound_station_dict:
+            print(f"{station_name} 去程公車到站時間：{outbound_station_dict[station_name]}")
+        if station_name in inbound_station_dict:
+            print(f"{station_name} 返程公車到站時間：{inbound_station_dict[station_name]}")
+        if station_name not in outbound_station_dict and station_name not in inbound_station_dict:
             print("不好意思！沒有這個車站。")
 
     finally:

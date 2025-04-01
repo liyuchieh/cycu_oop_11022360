@@ -1,0 +1,336 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"><html><head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0">
+    <script type="text/javascript" async="" src="https://ssl.google-analytics.com/ga.js"></script><script src="ajax2.js"></script>
+    <title>[忠孝幹線(公車雙向轉乘優惠)]公車動態資訊</title>
+    <link rel="stylesheet" type="text/css" href="./css/style.css">
+    <link rel="shortcut icon" href="#">
+    <script language="JavaScript">
+		//GoogleAnalysisCount
+		var _gaq = _gaq || [];
+		_gaq.push(['_setAccount', 'UA-36595213-1']);
+		_gaq.push(['_setCustomVar',1, 'RouteName', '&#x5fe0;&#x5b5d;&#x5e79;&#x7dda;(&#x516c;&#x8eca;&#x96d9;&#x5411;&#x8f49;&#x4e58;&#x512a;&#x60e0;)', 3]);
+		_gaq.push(['_trackPageview']);
+
+		(function() {
+			var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+			ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+			var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+		})();
+
+		var PathAttrSymbolMap = {};
+		var VirtualStopMap = {}; 
+		var TTEMap = {'0':'進站中','':'未發車','-1':'未發車','-2':'交管不停','-3':'末班已過','-4':'今日未營運'};
+		var Timer = null;
+	    var divIndex=0;
+	    var PathAttrFirstStopIdMap = {"104170":"36021"}; 
+	    
+    	function switchDiv() {
+    		if (document.getElementById("SDIV"+divIndex))
+    			{
+    			if (document.getElementById("IgnoreCheck"+divIndex))
+    				if (document.getElementById("IgnoreCheck"+divIndex).checked)
+    					localStorage.setItem("PDANewsAlertIgnoew"+document.getElementById("IgnoreCheck"+divIndex).value, "Yes");
+    			document.getElementById("SDIV"+divIndex).style.display='none';
+    			};
+    		divIndex++;
+    		while (document.getElementById("IgnoreCheck"+divIndex) 
+    				&& localStorage.getItem("PDANewsAlertIgnoew"+document.getElementById("IgnoreCheck"+divIndex).value)=="Yes")
+    		{divIndex++;};
+    		
+    		if (document.getElementById("SDIV"+divIndex))
+    			document.getElementById("SDIV"+divIndex).style.display='';
+    	}
+    	
+        function queryDyna() {
+        	if (Timer!=null) clearTimeout(Timer);
+        	http('GET', 'RouteDyna?routeid=10417', processDyna);
+        }
+        
+    	function processDyna(data) {
+			if (data.UpdateTime)
+				{
+				document.getElementById("spnUpdateTime").innerHTML= data.UpdateTime.substring(11);
+				
+				var okDataMS=Date.parse(data.UpdateTime.substr(0,10)+"T"+data.UpdateTime.substring(11).replace(/&#x3a;/g,":"))-1200000; // 20分
+				var busmapPre = {};
+				var busmapPost = {};
+				
+				for (var i=0;i<data.Bus.length;i++)
+					{
+					if (data.Bus[i].a2==null) continue;
+					if (data.Bus[i].a1!=null)
+						{
+						var arrA1 = data.Bus[i].a1.split(',');
+						if (arrA1[3]=="2" || arrA1[4]=="99") continue;
+						};
+					var arrA2 = data.Bus[i].a2.split(',');
+					if (arrA2[3]=="2" || arrA2[4]=="99") continue;
+					
+					if (/^TEST.*$/g.test(data.Bus[i].num)) continue;
+					if (Date.parse("20"+arrA2[11].substr(0,2)+"-"+arrA2[11].substr(2,2)+"-"+arrA2[11].substr(4,2)+"T"+arrA2[11].substr(6,2)+":"+arrA2[11].substr(8,2)+":"+arrA2[11].substr(10,2))<okDataMS) continue;
+
+					var busStopId=arrA2[7];
+					if (arrA2[8]=="1" && PathAttrFirstStopIdMap.hasOwnProperty(arrA2[5]) && busStopId==PathAttrFirstStopIdMap[arrA2[5]]) continue;
+					if (VirtualStopMap.hasOwnProperty(busStopId)) busStopId=VirtualStopMap[busStopId];
+					
+					var crowdimg="";
+			        
+					if (data.Bus[i].a3 && data.Bus[i].a3!=null)
+						{
+						var arrA3 = data.Bus[i].a3.split(',');
+						var level=parseInt(arrA3[6],10);
+						
+						if (Date.parse("20"+arrA3[7].substr(0,2)+"-"+arrA3[7].substr(2,2)+"-"+arrA3[7].substr(4,2)+"T"+arrA3[7].substr(6,2)+":"+arrA3[7].substr(8,2)+":"+arrA3[7].substr(10,2))>=okDataMS)
+							{
+							if (level>0)
+								crowdimg="<img border=0 src=\"crowd"+(level-1)+".gif\">";
+							else
+								{
+								var remainingNum=parseInt(arrA3[5],10);
+								if (remainingNum>32) crowdimg="<img border=0 src=\"crowd2.gif\">";
+								else if (remainingNum>22) crowdimg="<img border=0 src=\"crowd1.gif\">";
+								else crowdimg="<img border=0 src=\"crowd0.gif\">";
+								}
+							};
+						};
+				    
+					if (arrA2[8]=="0")
+					   {
+						if (!busmapPost.hasOwnProperty(busStopId)) busmapPost[busStopId]=""; else busmapPost[busStopId]+="<br>";
+						busmapPost[busStopId]+="<img border=0 src=\"bus" + data.Bus[i].type +".gif\"><font style=\"color:darkblue;\">" + data.Bus[i].num + (PathAttrSymbolMap.hasOwnProperty(arrA2[5])?PathAttrSymbolMap[arrA2[5]]:"") + "</font>"+crowdimg;
+					   }
+					else
+					   {
+						if (!busmapPre.hasOwnProperty(busStopId)) busmapPre[busStopId]=""; else busmapPre[busStopId]+="<br>";
+						busmapPre[busStopId]+="<img border=0 src=\"bus" + data.Bus[i].type +".gif\"><font style=\"color:darkblue;\">" + data.Bus[i].num + (PathAttrSymbolMap.hasOwnProperty(arrA2[5])?PathAttrSymbolMap[arrA2[5]]:"") + "</font>"+crowdimg;
+					   };
+					};
+
+				for (var i=0;i<data.Stop.length;i++)
+					{
+					if (data.Stop[i].n1==null) continue;
+					var arrN1 = data.Stop[i].n1.split(',');
+					if (!document.getElementById("tte"+arrN1[1])) continue;
+					var tteHTML="";
+					var movePreToPost=false;
+					
+					if (TTEMap.hasOwnProperty(arrN1[7]))
+						{
+						if (arrN1[7]!="0") movePreToPost=true;
+						tteHTML=TTEMap[arrN1[7]];
+						}
+					else
+						{
+						var tte=parseInt(arrN1[7],10);
+						if (tte>0 && tte<180)
+							tteHTML="將到站";
+						else
+							{
+							movePreToPost=true;
+							tteHTML=Math.floor(tte/60)+"分";
+							}
+						};
+					
+					
+							if (arrN1[3].indexOf("&#x3a;")>-1) if (arrN1[7]=="-1" || parseInt(arrN1[7],10)>5940) tteHTML=arrN1[3]+" 發車"; 
+					
+						
+					if (busmapPre.hasOwnProperty(arrN1[1])) 
+						{
+						if (movePreToPost)
+							tteHTML=tteHTML+"<br>"+busmapPre[arrN1[1]];
+						else
+							tteHTML=busmapPre[arrN1[1]]+"<br>"+tteHTML;
+						};
+					if (busmapPost.hasOwnProperty(arrN1[1])) tteHTML=tteHTML+"<br>"+busmapPost[arrN1[1]];
+					
+					document.getElementById("tte"+arrN1[1]).innerHTML=tteHTML;
+					};
+				};
+			Timer=setTimeout(queryDyna,60000);
+    	}
+	</script>
+</head>
+<body onload="switchDiv();queryDyna();">
+<center>
+<div id="SDIV1" style="">
+
+	<table class="formattable1">
+	
+		<tbody><tr>
+			<th class="title1"><a href="index.jsp" class="title1">行動查詢系統</a></th>
+		</tr>
+    
+		<tr>
+			<th class="title2"><a href="routelist.jsp" class="title2">查詢公車動態資訊</a></th>
+		</tr>
+		<tr>
+			<th class="title3"><a href="routeinfo.jsp?rid=10417">忠孝幹線(公車雙向轉乘優惠)</a><br><span class="updatetime">(更新時間：<span id="spnUpdateTime">20:38:13</span>&nbsp;<input type="button" value="立刻更新" onclick="queryDyna();">)</span>
+			</th>
+		</tr>
+	</tbody></table>
+    <marquee scrollamount="4" class="marqueetd" width="100%">2025雙北世壯運在臺北，5/17-5/30一起為選手加油!</marquee>
+
+	<table class="formattable1">
+    
+		<tbody><tr>
+			<td>
+				<table border="0" width="100%">
+					
+					<tbody><tr>
+						<td width="50%" class="ttegotitle">去程 (往松山車站)</td>
+						<td width="50%" class="ttebacktitle">返程 (往蘆洲)</td>
+					</tr>
+					
+					<tr>
+					<td valign="top" width="50%">
+
+							<table border="0" width="100%">
+							<tbody><tr class="ttego1"><td><a href="stop.jsp?sid=36021">蘆洲總站</a></td><td align="center" nowrap="" id="tte36021">未發車</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36022">王爺廟口</a></td><td align="center" nowrap="" id="tte36022">未發車</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36023">空中大學(中正路)</a></td><td align="center" nowrap="" id="tte36023">未發車</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36024">中原公寓</a></td><td align="center" nowrap="" id="tte36024">未發車</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36025">蘆洲國小</a></td><td align="center" nowrap="" id="tte36025">未發車</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36026">蘆洲監理站</a></td><td align="center" nowrap="" id="tte36026">未發車</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36027">蘆洲派出所</a></td><td align="center" nowrap="" id="tte36027">未發車</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36028">溪墘</a></td><td align="center" nowrap="" id="tte36028"><img border="0" src="bus1.gif"><font style="color:darkblue;">KKA-1070</font><br>進站中</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36029">捷運徐匯中學站</a></td><td align="center" nowrap="" id="tte36029">將到站</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36030">徐匯中學</a></td><td align="center" nowrap="" id="tte36030">將到站</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36031">幸福市場</a></td><td align="center" nowrap="" id="tte36031">將到站</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36032">建和新村</a></td><td align="center" nowrap="" id="tte36032">3分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=129828">捷運三和國中站</a></td><td align="center" nowrap="" id="tte129828">3分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36033">三和國中</a></td><td align="center" nowrap="" id="tte36033">4分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36034">格致中學(三和路)</a></td><td align="center" nowrap="" id="tte36034">5分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36036">厚德派出所</a></td><td align="center" nowrap="" id="tte36036">6分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36038">德林寺(三和路)</a></td><td align="center" nowrap="" id="tte36038">7分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36039">龍門路口</a></td><td align="center" nowrap="" id="tte36039">9分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36040">三安里</a></td><td align="center" nowrap="" id="tte36040">10分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36041">長壽西街口</a></td><td align="center" nowrap="" id="tte36041">11分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36042">長元西街口</a></td><td align="center" nowrap="" id="tte36042">12分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36043">正義重新路口</a></td><td align="center" nowrap="" id="tte36043">13分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36044">天台廣場</a></td><td align="center" nowrap="" id="tte36044">14分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36045">大同路口</a></td><td align="center" nowrap="" id="tte36045">15分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36046">中山藝術公園</a></td><td align="center" nowrap="" id="tte36046">15分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=218023">捷運菜寮站</a></td><td align="center" nowrap="" id="tte218023">16分<br><img border="0" src="bus1.gif"><font style="color:darkblue;">186-U7</font></td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36047">過圳街</a></td><td align="center" nowrap="" id="tte36047">將到站</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36048">三重區公所(過圳街)</a></td><td align="center" nowrap="" id="tte36048">將到站</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36049">三重稅捐分處</a></td><td align="center" nowrap="" id="tte36049">3分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36050">菜寮(重陽路)</a></td><td align="center" nowrap="" id="tte36050">4分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36051">集美國小</a></td><td align="center" nowrap="" id="tte36051">6分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36052">三重國民運動中心</a></td><td align="center" nowrap="" id="tte36052">7分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36053">三重中學</a></td><td align="center" nowrap="" id="tte36053">8分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36054">重安街口</a></td><td align="center" nowrap="" id="tte36054">9分<br><img border="0" src="bus1.gif"><font style="color:darkblue;">642-U5</font></td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36055">臺北車站(忠孝)</a></td><td align="center" nowrap="" id="tte36055">將到站</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36056">捷運善導寺站</a></td><td align="center" nowrap="" id="tte36056">4分<br><img border="0" src="bus1.gif"><font style="color:darkblue;">KKA-1072</font></td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36057">華山文創園區</a></td><td align="center" nowrap="" id="tte36057">將到站</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36058">忠孝國小</a></td><td align="center" nowrap="" id="tte36058">將到站</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36059">臺北科技大學(忠孝)</a></td><td align="center" nowrap="" id="tte36059">3分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36060">正義郵局</a></td><td align="center" nowrap="" id="tte36060">5分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36061">懷生國中</a></td><td align="center" nowrap="" id="tte36061">5分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36063">頂好市場</a></td><td align="center" nowrap="" id="tte36063">7分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36064">捷運忠孝敦化站</a></td><td align="center" nowrap="" id="tte36064">8分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36065">阿波羅大廈</a></td><td align="center" nowrap="" id="tte36065">10分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36066">交通部觀光署</a></td><td align="center" nowrap="" id="tte36066">11分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36067">捷運國父紀念館站(忠孝)</a></td><td align="center" nowrap="" id="tte36067">12分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36068">聯合報</a></td><td align="center" nowrap="" id="tte36068">13分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36069">捷運市政府站</a></td><td align="center" nowrap="" id="tte36069">14分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36070">市立工農</a></td><td align="center" nowrap="" id="tte36070">16分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36071">捷運永春站(忠孝)</a></td><td align="center" nowrap="" id="tte36071">17分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36072">捷運永春站(松山)</a></td><td align="center" nowrap="" id="tte36072">19分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36073">雙永國小</a></td><td align="center" nowrap="" id="tte36073">19分</td></tr>
+<tr class="ttego1"><td><a href="stop.jsp?sid=36074">永吉松山路口</a></td><td align="center" nowrap="" id="tte36074">19分</td></tr>
+<tr class="ttego2"><td><a href="stop.jsp?sid=36075">松山車站(松山)</a></td><td align="center" nowrap="" id="tte36075">21分<br><img border="0" src="bus1.gif"><font style="color:darkblue;">931-U3</font></td></tr>
+
+							</tbody></table>
+						</td>
+					<td valign="top" width="50%">
+
+							<table border="0" width="100%">
+							<tbody><tr class="tteback1"><td><a href="stop.jsp?sid=36077">虎林街口</a></td><td align="center" nowrap="" id="tte36077">將到站</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36078">永吉國中</a></td><td align="center" nowrap="" id="tte36078">將到站</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36079">松隆路口</a></td><td align="center" nowrap="" id="tte36079">3分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36080">松山高中(松隆)</a></td><td align="center" nowrap="" id="tte36080">4分<br><img border="0" src="bus1.gif"><font style="color:darkblue;">678-U5</font></td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36081">聯合報</a></td><td align="center" nowrap="" id="tte36081">4分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36082">捷運國父紀念館站(忠孝)</a></td><td align="center" nowrap="" id="tte36082">6分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36083">交通部觀光署</a></td><td align="center" nowrap="" id="tte36083">7分<br><img border="0" src="bus1.gif"><font style="color:darkblue;">648-U5</font></td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36084">阿波羅大廈</a></td><td align="center" nowrap="" id="tte36084"><img border="0" src="bus1.gif"><font style="color:darkblue;">679-U5</font><br>將到站</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36085">捷運忠孝敦化站</a></td><td align="center" nowrap="" id="tte36085">將到站</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36086">頂好市場</a></td><td align="center" nowrap="" id="tte36086">3分<br><img border="0" src="bus1.gif"><font style="color:darkblue;">173-U7</font></td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36087">捷運忠孝復興站</a></td><td align="center" nowrap="" id="tte36087">將到站</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36088">正義郵局</a></td><td align="center" nowrap="" id="tte36088">3分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36089">臺北科技大學(忠孝)</a></td><td align="center" nowrap="" id="tte36089">5分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36090">忠孝國小</a></td><td align="center" nowrap="" id="tte36090">6分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36091">華山文創園區</a></td><td align="center" nowrap="" id="tte36091">8分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36092">捷運善導寺站</a></td><td align="center" nowrap="" id="tte36092">9分<br><img border="0" src="bus1.gif"><font style="color:darkblue;">175-U7</font></td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36093">臺北車站(忠孝)</a></td><td align="center" nowrap="" id="tte36093">將到站</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36094">重安街口</a></td><td align="center" nowrap="" id="tte36094">8分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36095">三重中學</a></td><td align="center" nowrap="" id="tte36095">9分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36096">三重國民運動中心</a></td><td align="center" nowrap="" id="tte36096">11分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36097">集美國小</a></td><td align="center" nowrap="" id="tte36097">11分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36098">菜寮(重新路)</a></td><td align="center" nowrap="" id="tte36098">12分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36099">捷運菜寮站</a></td><td align="center" nowrap="" id="tte36099">13分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=56960">中山藝術公園</a></td><td align="center" nowrap="" id="tte56960">14分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36100">大同路口</a></td><td align="center" nowrap="" id="tte36100">15分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36101">正義重新路口</a></td><td align="center" nowrap="" id="tte36101">18分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36102">長元西街口</a></td><td align="center" nowrap="" id="tte36102">19分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36103">長壽西街口</a></td><td align="center" nowrap="" id="tte36103">20分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36104">三安里</a></td><td align="center" nowrap="" id="tte36104">20分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36105">龍門路口</a></td><td align="center" nowrap="" id="tte36105">21分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36106">德林寺(三和路)</a></td><td align="center" nowrap="" id="tte36106">23分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36108">厚德派出所</a></td><td align="center" nowrap="" id="tte36108">24分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36109">格致中學(三和路)</a></td><td align="center" nowrap="" id="tte36109">25分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36110">三和國中</a></td><td align="center" nowrap="" id="tte36110">27分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=129829">捷運三和國中站</a></td><td align="center" nowrap="" id="tte129829">27分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36111">建和新村</a></td><td align="center" nowrap="" id="tte36111">27分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36112">幸福市場</a></td><td align="center" nowrap="" id="tte36112">28分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36113">捷運徐匯中學站</a></td><td align="center" nowrap="" id="tte36113">30分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36114">民和公寓</a></td><td align="center" nowrap="" id="tte36114">32分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36115">溪墘</a></td><td align="center" nowrap="" id="tte36115">32分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36116">蘆洲派出所</a></td><td align="center" nowrap="" id="tte36116">34分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36117">蘆洲監理站(中正路)</a></td><td align="center" nowrap="" id="tte36117">35分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36118">蘆洲國小</a></td><td align="center" nowrap="" id="tte36118">36分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36119">中原公寓</a></td><td align="center" nowrap="" id="tte36119">37分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36120">空中大學(中正路)</a></td><td align="center" nowrap="" id="tte36120">38分</td></tr>
+<tr class="tteback2"><td><a href="stop.jsp?sid=36121">王爺廟口</a></td><td align="center" nowrap="" id="tte36121">38分</td></tr>
+<tr class="tteback1"><td><a href="stop.jsp?sid=36122">蘆洲總站</a></td><td align="center" nowrap="" id="tte36122">39分</td></tr>
+
+							</tbody></table>
+						</td>
+					
+					</tr>
+				</tbody></table>
+			</td>
+		</tr>
+	</tbody></table>
+	
+	
+        
+　　<table border="0" width="100%">
+        <tbody><tr>
+            <td>
+                <img src="bus0.gif" border="0">:一般公車
+            </td>
+            <td>
+                <img src="bus1.gif" border="0">:低地板公車
+            </td>
+            <td>
+                <img src="bus2.gif" border="0">:大復康巴士
+            </td>
+        </tr>
+        
+        <tr>
+            <td>
+                <img src="crowd0.gif" border="0">:舒適
+            </td>
+            <td>
+                <img src="crowd1.gif" border="0">:中等
+            </td>
+            <td>
+                <img src="crowd2.gif" border="0">:擁擠
+            </td>
+        </tr></tbody></table>
+</div>
+	 
+
+</center></body></html>
