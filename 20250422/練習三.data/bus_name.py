@@ -1,7 +1,11 @@
+import os
+import csv
 import pandas as pd
-import numpy as np
-import geopandas as gpd
 import matplotlib.pyplot as plt
+import numpy as np
+from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
+import geopandas as gpd  
 
 def truncate_to_three_decimals(value):
     """

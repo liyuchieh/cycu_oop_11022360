@@ -42,4 +42,3 @@ if __name__ == "__main__":
 
 #0161001500(基隆路幹線)
 #0161000900(承德幹線)
-#https://ebus.gov.taipei/thb/StopsOfRoute?nameZh=1818%E8%87%BA%E5%8C%97%E2%86%92%E4%B8%AD%E5%A3%A2 (1818)
