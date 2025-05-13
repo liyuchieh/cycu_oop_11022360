@@ -1,0 +1,5 @@
+pip install build
+cd 日期資料夾
+python -m build
+cd dist 
+pip install (按一下tab)
